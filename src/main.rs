@@ -1,128 +1,63 @@
 extern crate nalgebra as na;
+extern crate csv;
+extern crate rand;
 
-use std::io::{self, Write};
-use na::{DVector, dvector};
+pub mod ml;
+pub mod training_csv;
 
-type SetType = f64;
-type HypoType = fn(parameters: DVector<SetType>,x: &DVector<SetType>) -> SetType;
-
-
-/*
- * The first element of the x variable must be 1.0
- */
-fn hypothesis_function (parameters: DVector<SetType>, x: &DVector<SetType>) -> SetType {
-    // hø(x) = ø[0]x[0] + x[n]ø[n]...
-    let value = parameters.transpose() * x;
-    return value[0];
-}
-
-fn cost_function (predictions: &DVector<SetType>, training_result: &DVector<SetType>) -> SetType {
-    /*( 1  ) Sum( ( hø(x[n]) - y[n]) ** 2 )
-      ( 2m ) 
-    */
-    let mut sum = 0.0;
-    let m = training_result.len() - 1;
-    for i in 0..m {
-        sum += (predictions[i] - training_result[i]).powf(2.0);
-    }
-
-    let cost = (1.0 / (2.0 * m as SetType)) * sum;
-
-    return cost;
-}
-
-fn cost_function_derivative (
-    parameters: &DVector<SetType>,
-    hypothesis: HypoType,
-    x: &DVector<DVector<SetType>>,
-    training_result: &DVector<SetType>,
-    parameter_index: usize,
-) -> SetType {
-    /*( 1  ) Sum( ( hø(x[n]) - y[n]) * x[i][parameter_index] )
-      ( m ) 
-    */
-    let mut sum = 0.0;
-    let m = training_result.len() - 1;
-    for i in 0..m {
-        let y = training_result[i];
-        sum += (hypothesis(parameters.clone(), &x[i]) - y) * x[i][parameter_index];
-    }
-
-    let cost = (1.0 /  m as SetType) * sum;
-
-    return cost;
-}
-
-fn gradient_descent(
-    parameters: &DVector<SetType>,
-    hypothesis: HypoType,
-    x: &DVector<DVector<SetType>>,
-    training_result: &DVector<SetType>,
-    learning_rate: SetType,
-) -> DVector<SetType> {
-    let mut updated_parameters = dvector![];
-
-    for (parameter_index, parameter) in parameters.iter().enumerate() {
-        let slope = cost_function_derivative(
-            &parameters,
-            hypothesis,
-            &x,
-            &training_result,
-            parameter_index,
-        );
-        let updated_param = parameter - learning_rate * slope;
-        updated_parameters = updated_parameters.push(updated_param);
-    }
-
-
-    return updated_parameters;
-}
+use std::io::{Write};
+use std::sync::mpsc::channel;
+use ctrlc;
+use training_csv::{load_csv, load_x, load_y};
+use ml::{SetType, prediction_cost, hypothesis_function, gradient_descent, initialize_parameters};
 
 fn main() {
-    // let mut PARAMETERS: DVector<f32> = dvector![0.0, 0.5];
-    let mut parameters: DVector<SetType> = dvector![10.0, -2.0];
+    // Settings
+    const LEARNING_RATE: SetType = 0.00000000865;
+    const DATA_FIELDS: u16 = 34 - 22;
+    const TRAINING_DATA_FILE_PATH: &str = "./model/short_training_data.csv";
+    const MINIMUM_ERROR_RATE: SetType = 0.000005;
 
-    let training_data_x: DVector<DVector<SetType>> = dvector![
-        dvector![1.0, 1.0],
-        dvector![1.0, 2.0],
-        dvector![1.0, 4.0]
-    ];
-    let training_data_y: DVector<SetType> = dvector![
-        0.5,
-        1.0,
-        2.0
-    ];
+    // Sets up the ctrl+c handler
+    let (ctx, crx) = channel();
+    ctrlc::set_handler(move || ctx.send(()).expect("Could not send signal on channel."))
+        .expect("Error setting Ctrl-C handler");
 
-    let mut predictions: DVector<SetType> = dvector![];
+    // Loads the data
+    let training_data = load_csv(TRAINING_DATA_FILE_PATH);
+    let training_data_x = load_x(&training_data);
+    let training_data_y = load_y(&training_data);
 
-    for x in training_data_x.iter() {
-        let prediction = hypothesis_function(parameters.clone(), &x);
-        predictions = predictions.push(prediction);
-    }
+    // Initializes the parameters with random values
+    let mut parameters = initialize_parameters(DATA_FIELDS);
 
-    
-    let old_cost = cost_function(&predictions, &training_data_y);
+    // Calculates the cost of the randomly generated parameters
+    let old_cost = prediction_cost(&parameters, &training_data_x, &training_data_y);
     
     loop {
+        // If it receives a ctrl + c it leaves the loop
+        if let Ok(_) = crx.try_recv() {
+            break;
+        }
+
+        // Apply gradient descent to the parameters
         parameters = gradient_descent(
             &parameters,
             hypothesis_function,
             &training_data_x,
             &training_data_y,
-            0.5
+            LEARNING_RATE
         );
-        let mut n_predictions: DVector<SetType> = dvector![];
-
-        for x in training_data_x.iter() {
-            let prediction = hypothesis_function(parameters.clone(), &x);
-            n_predictions = n_predictions.push(prediction);
-        }
         
-        let n_cost = cost_function(&n_predictions, &training_data_y);
+        // Calculates the cost of the adjusted parameters
+        let n_cost = prediction_cost(&parameters, &training_data_x, &training_data_y);
+
+        // Prints out the costs
         print!("\rOld: {old_cost}, New: {n_cost}\r");
         std::io::stdout().flush().unwrap();
 
-        if n_cost < 0.000005 {
+        // If the error rate is less than this then the algorithm has probably converged already   
+        if n_cost < MINIMUM_ERROR_RATE {
             break;
         }
     }
