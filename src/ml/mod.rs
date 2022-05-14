@@ -1,4 +1,4 @@
-use na::{DVector, dvector};
+use na::{DVector, dvector, DMatrix};
 use rand::Rng;
 
 pub type SetType = f64;
@@ -73,6 +73,28 @@ pub fn gradient_descent(
 
 
     return updated_parameters;
+}
+
+pub fn normal_equation(
+    x: &DVector<DVector<SetType>>,
+    training_result: &DVector<SetType>,
+) -> DVector<SetType> {
+
+    let mut matrix = vec![];
+
+    for row in x {
+        matrix.extend(row);
+    }
+
+    let x = DMatrix::from_vec(x[0].len(), x.len(), matrix).transpose();
+
+    let x_transposed = x.transpose();
+    
+    let inverse = (x_transposed.clone() * x).pseudo_inverse(0.1).unwrap();
+    
+    let params = inverse * x_transposed * training_result;    
+
+    return params;
 }
 
 pub fn prediction_cost(parameters: &DVector<SetType>, x: &DVector<DVector<SetType>>, y: &DVector<SetType>) -> SetType {
