@@ -8,7 +8,6 @@ pub mod training_csv;
 use std::io::{Write};
 use std::sync::mpsc::channel;
 use ctrlc;
-use na::{DMatrix, DVector};
 use training_csv::{load_csv, load_x, load_y};
 use ml::{SetType, normal_equation, prediction_cost, hypothesis_function, gradient_descent, initialize_parameters};
  
@@ -32,7 +31,7 @@ fn main() {
     let data_fields = training_data[0].len() as u16 - 1;
 
     // Initializes the parameters with random values
-    let mut parameters = initialize_parameters(data_fields);
+    let parameters = initialize_parameters(data_fields);
 
     // Calculates the cost of the randomly generated parameters
     let old_cost = prediction_cost(&parameters, &training_data_x, &training_data_y);
