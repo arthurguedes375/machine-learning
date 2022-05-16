@@ -15,7 +15,7 @@ fn main() {
     // Settings
     const TARGET_FIELD_INDEX: usize = 1;
     const TRAINING_DATA_FILE_PATH: &str = "./model/tst.csv";
-    const LEARNING_RATE: SetType = 0.01;
+    const LEARNING_RATE: SetType = 0.8;
     const MINIMUM_ERROR_RATE: SetType = 0.000000000000005;
 
     // Sets up the ctrl+c handler

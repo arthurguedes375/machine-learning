@@ -79,7 +79,6 @@ pub fn normal_equation(
     x: &DVector<DVector<SetType>>,
     training_result: &DVector<SetType>,
 ) -> DVector<SetType> {
-
     let mut matrix = vec![];
 
     for row in x {
@@ -90,7 +89,7 @@ pub fn normal_equation(
 
     let x_transposed = x.transpose();
     
-    let inverse = (x_transposed.clone() * x).pseudo_inverse(0.1).unwrap();
+    let inverse = (x_transposed.clone() * x).pseudo_inverse(0.0).unwrap();
     
     let params = inverse * x_transposed * training_result;    
 
