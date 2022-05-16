@@ -8,6 +8,7 @@ pub mod training_csv;
 use std::io::{Write};
 use std::sync::mpsc::channel;
 use ctrlc;
+use na::dvector;
 use training_csv::{load_csv, load_x, load_y};
 use ml::{SetType, normal_equation, prediction_cost, hypothesis_function, gradient_descent, initialize_parameters};
  
@@ -15,8 +16,9 @@ fn main() {
     // Settings
     const TARGET_FIELD_INDEX: usize = 1;
     const TRAINING_DATA_FILE_PATH: &str = "./model/tst.csv";
-    const LEARNING_RATE: SetType = 0.8;
+    const LEARNING_RATE: SetType = 0.01;
     const MINIMUM_ERROR_RATE: SetType = 0.000000000000005;
+    const MAX_ITERS: usize = 1000;
 
     // Sets up the ctrl+c handler
     let (ctx, crx) = channel();
@@ -31,7 +33,8 @@ fn main() {
     let data_fields = training_data[0].len() as u16 - 1;
 
     // Initializes the parameters with random values
-    let parameters = initialize_parameters(data_fields);
+    // let parameters = initialize_parameters(data_fields);
+    let parameters = dvector![0.0, 0.0];
 
     // Calculates the cost of the randomly generated parameters
     let old_cost = prediction_cost(&parameters, &training_data_x, &training_data_y);
@@ -39,11 +42,14 @@ fn main() {
     // Using Gradient Descent
     let mut gradient_params = parameters.clone();
     let mut g_cost = 0.0;
+    let mut iter = 0;
     loop {
         // If it receives a ctrl + c it leaves the loop
         if let Ok(_) = crx.try_recv() {
             break;
         }
+
+        iter += 1;
 
         // Apply gradient descent to the parameters
         gradient_params = gradient_descent(
@@ -61,9 +67,8 @@ fn main() {
         print!("\rOld: {old_cost}, New: {g_cost}\r");
         std::io::stdout().flush().unwrap();
         
-
         // If the error rate is less than this then the algorithm has probably converged already   
-        if g_cost < MINIMUM_ERROR_RATE {
+        if g_cost < MINIMUM_ERROR_RATE || (MAX_ITERS > 0 && iter >= MAX_ITERS) {
             break;
         }
     }
