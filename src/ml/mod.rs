@@ -28,47 +28,32 @@ pub fn cost_function(predictions: &DVector<SetType>, training_result: &DVector<S
     return cost;
 }
 
-pub fn cost_function_derivative(
-    parameters: &DVector<SetType>,
-    hypothesis: HypoType,
-    x: &DVector<DVector<SetType>>,
-    training_result: &DVector<SetType>,
-    parameter_index: usize,
-) -> SetType {
-    /*( 1 ) Sum( ( hø(x[n]) - y[n]) * x[i][parameter_index] )
-      ( m ) 
-    */
-    let mut sum = 0.0;
-    let m = training_result.len() - 1;
-    for i in 0..m {
-        let y = training_result[i];
-        sum += (hypothesis(parameters.clone(), &x[i]) - y) * x[i][parameter_index];
-    }
-
-    let cost = (1.0 /  m as SetType) * sum;
-
-    return cost;
-}
-
 pub fn gradient_descent(
-    parameters: &DVector<SetType>,
-    hypothesis: HypoType,
-    x: &DVector<DVector<SetType>>,
-    training_result: &DVector<SetType>,
-    learning_rate: SetType,
+    theta: &DVector<SetType>,
+    x: &DMatrix<SetType>,
+    y: &DVector<SetType>,
+    alpha: SetType,
 ) -> DVector<SetType> {
+    let m = x.column(0).len();
     let mut updated_parameters = dvector![];
 
-    for (parameter_index, parameter) in parameters.iter().enumerate() {
-        let slope = cost_function_derivative(
-            &parameters,
-            hypothesis,
-            &x,
-            &training_result,
-            parameter_index,
-        );
-        let updated_param = parameter - learning_rate * slope;
+    for (parameter_index, parameter) in theta.iter().enumerate() {
+        let predicted_values = x * theta;
+        let parameters = x.column(parameter_index);
+        let cost = predicted_values - y;
+
+        let mut r: i16 = -1;
+        let costs_times_params = cost
+        .map(|c| {
+            r += 1;
+            c * parameters.row(r as usize)[0]
+        });
+
+        let sum = costs_times_params.sum();
+        let slope = (1.0 / m as f64) * sum;
+        let updated_param = parameter - alpha * slope;
         updated_parameters = updated_parameters.push(updated_param);
+
     }
 
 
@@ -76,16 +61,9 @@ pub fn gradient_descent(
 }
 
 pub fn normal_equation(
-    x: &DVector<DVector<SetType>>,
+    x: &DMatrix<SetType>,
     training_result: &DVector<SetType>,
 ) -> DVector<SetType> {
-    let mut matrix = vec![];
-
-    for row in x {
-        matrix.extend(row);
-    }
-
-    let x = DMatrix::from_vec(x[0].len(), x.len(), matrix).transpose();
 
     let x_transposed = x.transpose();
     
@@ -96,13 +74,8 @@ pub fn normal_equation(
     return params;
 }
 
-pub fn prediction_cost(parameters: &DVector<SetType>, x: &DVector<DVector<SetType>>, y: &DVector<SetType>) -> SetType {
-    let mut predictions: DVector<SetType> = dvector![];
-
-    for x in x.iter() {
-        let prediction = hypothesis_function(parameters.clone(), &x);
-        predictions = predictions.push(prediction);
-    }
+pub fn prediction_cost(theta: &DVector<SetType>, x: &DMatrix<SetType>, y: &DVector<SetType>) -> SetType {
+    let predictions: DVector<SetType> = x * theta;
     
     let cost = cost_function(&predictions, &y);
 

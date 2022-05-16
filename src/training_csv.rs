@@ -3,11 +3,12 @@ use std::fs::read_to_string;
 
 use na::{DVector};
 use csv::{StringRecordsIter};
+use nalgebra::DMatrix;
 
-pub type TrainingData = Vec<Vec<SetType>>;
+pub type TrainingData = DMatrix<SetType>;
 
 pub fn clean_csv(records: StringRecordsIter<&[u8]>) -> TrainingData {
-    let mut n_records: TrainingData = vec![];
+    let mut n_records = vec![];
     for record in records {
         let mut contains_char = false;
         let mut n_data: Vec<SetType> = vec![];
@@ -30,8 +31,16 @@ pub fn clean_csv(records: StringRecordsIter<&[u8]>) -> TrainingData {
             n_records.push(n_data);
         }
     }
+    let mut matrix = vec![];
 
-    return n_records;
+    for row in &n_records {
+        matrix.extend(row);
+    }
+
+    let matrix = DMatrix
+    ::from_vec(n_records[0].len(), n_records.len(), matrix).transpose();
+
+    return matrix;
 }
 
 pub fn load_csv(file_path: &str) -> TrainingData {
@@ -44,33 +53,10 @@ pub fn load_csv(file_path: &str) -> TrainingData {
     return clean_csv;
 }
 
-pub fn load_x(training_data: &TrainingData, target_index: usize) -> DVector<DVector<SetType>> {
-    DVector::from_vec(training_data
-            .iter()
-            .map(
-                |record| {
-                    let mut data = vec![1.0];
-                    for i in 0..record.len() {
-                        if i != target_index {
-                            data.push(record[i]);
-                        }
-                    }
-                    DVector::from_vec(data)
-                }
-            )
-            .collect()
-    )
+pub fn load_x(training_data: &TrainingData, target_index: usize) -> TrainingData {    
+    training_data.clone().remove_column(target_index).insert_column(0, 1.0)
 }
 
 pub fn load_y(training_data: &TrainingData, target_index: usize) -> DVector<SetType> {
-    DVector::from_vec(
-    training_data
-        .iter()
-        .map(
-            |record| {
-                record[target_index]
-            }
-        )
-        .collect()
-    )
+    DVector::from_column_slice(training_data.column(target_index).as_slice())
 }

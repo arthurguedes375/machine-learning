@@ -30,7 +30,7 @@ fn main() {
     let training_data_x = load_x(&training_data, TARGET_FIELD_INDEX);
     let training_data_y = load_y(&training_data, TARGET_FIELD_INDEX);
 
-    let data_fields = training_data[0].len() as u16 - 1;
+    let data_fields = training_data.row(0).len() as u16 - 1;
 
     // Initializes the parameters with random values
     // let parameters = initialize_parameters(data_fields);
@@ -54,7 +54,6 @@ fn main() {
         // Apply gradient descent to the parameters
         gradient_params = gradient_descent(
             &gradient_params,
-            hypothesis_function,
             &training_data_x,
             &training_data_y,
             LEARNING_RATE
