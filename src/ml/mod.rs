@@ -1,6 +1,8 @@
 use na::{DVector, dvector, DMatrix};
 use rand::Rng;
 
+mod settings;
+pub use settings::{Settings};
 pub type SetType = f64;
 pub type HypoType = fn(parameters: DVector<SetType>,x: &DVector<SetType>) -> SetType;
 

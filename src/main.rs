@@ -8,17 +8,13 @@ pub mod training_csv;
 use std::io::{Write};
 use std::sync::mpsc::channel;
 use ctrlc;
-use na::dvector;
+use na::{DVector};
 use training_csv::{load_csv, load_x, load_y};
-use ml::{SetType, normal_equation, prediction_cost, hypothesis_function, gradient_descent, initialize_parameters};
+use ml::{normal_equation, prediction_cost, gradient_descent, initialize_parameters};
  
 fn main() {
     // Settings
-    const TARGET_FIELD_INDEX: usize = 1;
-    const TRAINING_DATA_FILE_PATH: &str = "./model/tst.csv";
-    const LEARNING_RATE: SetType = 0.01;
-    const MINIMUM_ERROR_RATE: SetType = 0.000000000000005;
-    const MAX_ITERS: usize = 1000;
+    let settings = ml::Settings::load();
 
     // Sets up the ctrl+c handler
     let (ctx, crx) = channel();
@@ -26,15 +22,19 @@ fn main() {
         .expect("Error setting Ctrl-C handler");
 
     // Loads the data
-    let training_data = load_csv(TRAINING_DATA_FILE_PATH);
-    let training_data_x = load_x(&training_data, TARGET_FIELD_INDEX);
-    let training_data_y = load_y(&training_data, TARGET_FIELD_INDEX);
+    let training_data = load_csv(&settings.training_data_file_path);
+    let training_data_x = load_x(&training_data, settings.target_field_index);
+    let training_data_y = load_y(&training_data, settings.target_field_index);
 
     let data_fields = training_data.row(0).len() as u16 - 1;
 
     // Initializes the parameters with random values
-    // let parameters = initialize_parameters(data_fields);
-    let parameters = dvector![0.0, 0.0];
+    let parameters;
+    if let Some(element) = settings.default_param {
+        parameters = DVector::from_element(training_data.row(0).len(), element);
+    } else {
+        parameters = initialize_parameters(data_fields)
+    }
 
     // Calculates the cost of the randomly generated parameters
     let old_cost = prediction_cost(&parameters, &training_data_x, &training_data_y);
@@ -44,6 +44,10 @@ fn main() {
     let mut g_cost = 0.0;
     let mut iter = 0;
     loop {
+        if let None = settings.learning_rate {
+            println!("Not running gradient descent. Missing LEARNING_RATE");
+            break;
+        }
         // If it receives a ctrl + c it leaves the loop
         if let Ok(_) = crx.try_recv() {
             break;
@@ -56,7 +60,7 @@ fn main() {
             &gradient_params,
             &training_data_x,
             &training_data_y,
-            LEARNING_RATE
+            settings.learning_rate.unwrap(),
         );
         
         // Calculates the cost of the adjusted parameters
@@ -67,7 +71,7 @@ fn main() {
         std::io::stdout().flush().unwrap();
         
         // If the error rate is less than this then the algorithm has probably converged already   
-        if g_cost < MINIMUM_ERROR_RATE || (MAX_ITERS > 0 && iter >= MAX_ITERS) {
+        if g_cost < settings.minimum_error_rate || (settings.max_iters > 0 && iter >= settings.max_iters) {
             break;
         }
     }
@@ -81,8 +85,6 @@ fn main() {
 
 
     println!("\n\nParams:\nNormal Equation: {ne_parameters}\nGradient Descent: {gradient_params}");
-
-    
 
     println!("Costs:\nOld: {old_cost} \nNormal Equation: {ne_cost}\nGradient Descent: {g_cost}");
 }

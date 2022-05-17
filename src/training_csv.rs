@@ -38,7 +38,7 @@ pub fn clean_csv(records: StringRecordsIter<&[u8]>) -> TrainingData {
     }
 
     let matrix = DMatrix
-    ::from_vec(n_records[0].len(), n_records.len(), matrix).transpose();
+        ::from_vec(n_records[0].len(), n_records.len(), matrix).transpose();
 
     return matrix;
 }
